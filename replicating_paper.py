@@ -7,6 +7,8 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_curve, auc
 
 # Read the CSV file into a DataFrame
 df = pd.read_csv("german_credit.csv")
@@ -150,3 +152,37 @@ y_pred_svm = best_svm.predict(X_test_imputed)
 # Print classification report
 print("\nClassification Report (SVM):")
 print(classification_report(y_test, y_pred_svm, zero_division=0))
+
+""" Section 5: Plotting the ROC """
+# Define models and their predictions
+models = {
+    'Decision Trees with Pruning': pruned_tree,
+    'AdaBoost': best_adaboost,
+    'MLP': best_mlp,
+    'SVM': best_svm
+}
+
+# Plot ROC curves for each model
+plt.figure(figsize=(8, 8))
+for model_name, model in models.items():
+    if hasattr(model, "predict_proba"):  # Check if the model has predict_proba method
+        y_pred_proba = model.predict_proba(X_test_imputed)[:, 1]  # Get predicted probabilities for class 1
+        fpr, tpr, _ = roc_curve(y_test, y_pred_proba)  # Calculate ROC curve
+        roc_auc = auc(fpr, tpr)  # Calculate AUC
+        # Interpolate the ROC curve for smoother visualization
+        fpr_interp = np.linspace(0, 1, 1000)
+        tpr_interp = np.interp(fpr_interp, fpr, tpr)
+        plt.plot(fpr_interp, tpr_interp, label=f'{model_name} (AUC = {roc_auc:.2f})')
+
+# Plot random guess line
+plt.plot([0, 1], [0, 1], linestyle='--', color='gray', label='Random Guess')
+
+# Set plot labels and title
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC) Curve')
+plt.legend()
+plt.grid(True)
+
+# Show plot
+plt.show()
