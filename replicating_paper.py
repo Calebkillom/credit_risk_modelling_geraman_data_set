@@ -4,9 +4,9 @@ from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKF
 from sklearn.metrics import classification_report
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import AdaBoostClassifier
-import numpy as np
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
+import numpy as np
 
 # Read the CSV file into a DataFrame
 df = pd.read_csv("german_credit.csv")
@@ -23,7 +23,7 @@ imputer = SimpleImputer(strategy='mean')
 X_train_imputed = imputer.fit_transform(X_train)
 X_test_imputed = imputer.transform(X_test)
 
-""" Section 1: Decision Trees """
+""" Section 1: Decision Trees with Pruning"""
 
 # Initialize the decision tree classifier with Gini index as the splitting criterion and maximum depth
 clf = DecisionTreeClassifier(criterion='gini', max_depth=None, random_state=42)
@@ -31,14 +31,19 @@ clf = DecisionTreeClassifier(criterion='gini', max_depth=None, random_state=42)
 # Fit the classifier to the training data
 clf.fit(X_train_imputed, y_train)
 
-# Make predictions on the test data
-y_pred_dt = clf.predict(X_test_imputed)
+# Prune the decision tree to prevent overfitting
+# You may need to adjust the pruning hyperparameters based on your data and model
+pruned_tree = DecisionTreeClassifier(criterion='gini', max_depth=3, random_state=42)
+pruned_tree.fit(X_train_imputed, y_train)
 
-# Evaluate the classifier
-print("Classification Report (Decision Trees):")
-print(classification_report(y_test, y_pred_dt))
+# Make predictions on the test data using pruned tree
+y_pred_dt_pruned = pruned_tree.predict(X_test_imputed)
 
-""" Section 2: AdaBoost with Performance Tuning """
+# Evaluate the pruned classifier
+print("Classification Report (Pruned Decision Tree):")
+print(classification_report(y_test, y_pred_dt_pruned))
+
+""" Section 2: AdaBoost with Weighted Averaging"""
 
 # Initialize AdaBoost classifier
 ada_boost = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1), algorithm='SAMME')
@@ -47,7 +52,6 @@ ada_boost = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1), al
 param_grid_adaboost = {
     'n_estimators': [50, 100, 200, 300],
     'learning_rate': [0.1, 0.5, 1.0, 1.5],
-    'estimator__min_samples_split': [2, 5, 10]
 }
 
 # Perform grid search with 10-fold cross-validation for AdaBoost classifier
@@ -71,16 +75,16 @@ y_pred_adaboost = best_adaboost.predict(X_test_imputed)
 print("\nClassification Report (AdaBoost):")
 print(classification_report(y_test, y_pred_adaboost))
 
-""" Implement Multilayer Perceptron (MLP) """
+""" Section 3: Implement Multilayer Perceptron (MLP) """
 
 # Initialize MLP classifier
 mlp = MLPClassifier(random_state=42, activation='logistic', solver='sgd', learning_rate='constant')
 
 # Define parameter grid for MLP classifier
 param_grid_mlp = {
-    'hidden_layer_sizes': [(24,), (14,), (50,), (100,)],
-    'max_iter': [100, 200, 300],
-    'learning_rate_init': [0.001, 0.01, 0.1],
+    'hidden_layer_sizes': [(21,)],
+    'max_iter': [300, 400],
+    'learning_rate_init': [0.0001, 0.0005, 0.001, 0.005],
 }
 
 # Perform grid search with 10-fold cross-validation for MLP classifier
@@ -108,13 +112,14 @@ print("\nClassification Report (MLP):")
 print(classification_report(y_test, y_pred_mlp, zero_division=0))
 
 
-""" Implement Support Vector Machine (SVM) """
+
+""" Section 4: Implement Support Vector Machine (SVM) """
 # Initialize SVM classifier
 svm = SVC(random_state=42)
 
 # Define exponentially growing sequences for σ and C
-sigma_values = np.logspace(-3, 2, 6)  # Example sequence for σ
-C_values = np.logspace(-2, 3, 6)       # Example sequence for C
+sigma_values = np.logspace(4, 3, 8)  # Example sequence for σ
+C_values = np.logspace(-3, 4, 8)       # Example sequence for C
 
 # Define parameter grid for SVM classifier
 param_grid_svm = {
@@ -125,6 +130,8 @@ param_grid_svm = {
 
 # Perform grid search with 10-fold cross-validation for SVM classifier
 cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+# Perform grid search with 10-fold cross-validation for SVM classifier
 grid_search_svm = GridSearchCV(svm, param_grid_svm, cv=cv)
 grid_search_svm.fit(X_train_imputed, y_train)
 
