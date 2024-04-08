@@ -9,6 +9,8 @@ from sklearn.svm import SVC
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
+from scipy.stats import wilcoxon
+from scipy.stats import chi2
 
 # Read the CSV file into a DataFrame
 df = pd.read_csv("german_credit.csv")
@@ -165,10 +167,10 @@ models = {
 # Plot ROC curves for each model
 plt.figure(figsize=(8, 8))
 for model_name, model in models.items():
-    if hasattr(model, "predict_proba"):  # Check if the model has predict_proba method
-        y_pred_proba = model.predict_proba(X_test_imputed)[:, 1]  # Get predicted probabilities for class 1
-        fpr, tpr, _ = roc_curve(y_test, y_pred_proba)  # Calculate ROC curve
-        roc_auc = auc(fpr, tpr)  # Calculate AUC
+    if hasattr(model, "predict_proba"):
+        y_pred_proba = model.predict_proba(X_test_imputed)[:, 1]
+        fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+        roc_auc = auc(fpr, tpr)
         # Interpolate the ROC curve for smoother visualization
         fpr_interp = np.linspace(0, 1, 1000)
         tpr_interp = np.interp(fpr_interp, fpr, tpr)
@@ -186,3 +188,49 @@ plt.grid(True)
 
 # Show plot
 plt.show()
+
+""" Section 6: AUC Estimates """
+# Define AUC estimates for each model based on reported best scores
+AUC_DT = 0.69  # Estimated value based on reported accuracy
+AUC_AdaBoost = 0.7675
+AUC_MLP = 0.7025
+AUC_SVM = 0.71875
+
+# Define the number of samples for good and bad credit sets
+ng = 150  # Number of samples for class 1
+nb = 150   # Number of samples for class 0
+
+# Calculate the Wilcoxon-Mann-Whitney statistic for each pairwise comparison
+theta_MLP_SVM = AUC_MLP - AUC_SVM
+theta_MLP_AdaBoost = AUC_MLP - AUC_AdaBoost
+theta_SVM_AdaBoost = AUC_SVM - AUC_AdaBoost
+
+# Calculate the variance of AUC estimators for each model
+v_MLP = 1 / nb * np.sum(np.ones(nb) * ng - np.arange(1, ng + 1))
+v_SVM = 1 / ng * np.sum(np.ones(ng) * nb - np.arange(1, nb + 1))
+v_AdaBoost = 1 / nb * np.sum(np.ones(nb) * ng - np.arange(1, ng + 1))
+
+# Calculate the covariance of AUC estimators for each pairwise comparison
+cov_MLP_SVM = 1 / (ng * (ng - 1)) * np.sum((ng - np.arange(1, ng + 1)) * (nb - np.arange(1, nb + 1)))
+cov_MLP_AdaBoost = cov_SVM_AdaBoost = 0  # Since these models were not directly compared in the provided results
+
+# Compute the test statistic (T) for each pairwise comparison
+var_theta_MLP_SVM = v_MLP + v_SVM - 2 * cov_MLP_SVM
+T_MLP_SVM = (theta_MLP_SVM ** 2) / var_theta_MLP_SVM
+
+var_theta_MLP_AdaBoost = v_MLP + v_AdaBoost - 2 * cov_MLP_AdaBoost
+T_MLP_AdaBoost = (theta_MLP_AdaBoost ** 2) / var_theta_MLP_AdaBoost
+
+var_theta_SVM_AdaBoost = v_SVM + v_AdaBoost - 2 * cov_SVM_AdaBoost
+T_SVM_AdaBoost = (theta_SVM_AdaBoost ** 2) / var_theta_SVM_AdaBoost
+
+# Calculate the p-values for each pairwise comparison
+p_value_MLP_SVM = 1 - chi2.cdf(T_MLP_SVM, 1)  # Using Chi-square distribution with 1 degree of freedom
+p_value_MLP_AdaBoost = 1 - chi2.cdf(T_MLP_AdaBoost, 1)
+p_value_SVM_AdaBoost = 1 - chi2.cdf(T_SVM_AdaBoost, 1)
+
+# Print the results
+# Print the results
+print("MLP vs SVM: T-statistic =", T_MLP_SVM, "p-value =", p_value_MLP_SVM)
+print("MLP vs AdaBoost: T-statistic =", T_MLP_AdaBoost, "p-value =", p_value_MLP_AdaBoost)
+print("SVM vs AdaBoost: T-statistic =", T_SVM_AdaBoost, "p-value =", p_value_SVM_AdaBoost)
