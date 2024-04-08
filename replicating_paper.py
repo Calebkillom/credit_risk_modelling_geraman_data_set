@@ -187,18 +187,20 @@ plt.legend()
 plt.grid(True)
 
 # Show plot
+plt.savefig('ROC_curve.pdf')
 plt.show()
+plt.close()
 
 """ Section 6: AUC Estimates """
 # Define AUC estimates for each model based on reported best scores
-AUC_DT = 0.69  # Estimated value based on reported accuracy
+AUC_DT = 0.69
 AUC_AdaBoost = 0.7675
 AUC_MLP = 0.7025
 AUC_SVM = 0.71875
 
 # Define the number of samples for good and bad credit sets
-ng = 150  # Number of samples for class 1
-nb = 150   # Number of samples for class 0
+ng = 150
+nb = 150
 
 # Calculate the Wilcoxon-Mann-Whitney statistic for each pairwise comparison
 theta_MLP_SVM = AUC_MLP - AUC_SVM
@@ -212,7 +214,7 @@ v_AdaBoost = 1 / nb * np.sum(np.ones(nb) * ng - np.arange(1, ng + 1))
 
 # Calculate the covariance of AUC estimators for each pairwise comparison
 cov_MLP_SVM = 1 / (ng * (ng - 1)) * np.sum((ng - np.arange(1, ng + 1)) * (nb - np.arange(1, nb + 1)))
-cov_MLP_AdaBoost = cov_SVM_AdaBoost = 0  # Since these models were not directly compared in the provided results
+cov_MLP_AdaBoost = cov_SVM_AdaBoost = 0
 
 # Compute the test statistic (T) for each pairwise comparison
 var_theta_MLP_SVM = v_MLP + v_SVM - 2 * cov_MLP_SVM
@@ -225,12 +227,34 @@ var_theta_SVM_AdaBoost = v_SVM + v_AdaBoost - 2 * cov_SVM_AdaBoost
 T_SVM_AdaBoost = (theta_SVM_AdaBoost ** 2) / var_theta_SVM_AdaBoost
 
 # Calculate the p-values for each pairwise comparison
-p_value_MLP_SVM = 1 - chi2.cdf(T_MLP_SVM, 1)  # Using Chi-square distribution with 1 degree of freedom
+p_value_MLP_SVM = 1 - chi2.cdf(T_MLP_SVM, 1)
 p_value_MLP_AdaBoost = 1 - chi2.cdf(T_MLP_AdaBoost, 1)
 p_value_SVM_AdaBoost = 1 - chi2.cdf(T_SVM_AdaBoost, 1)
 
 # Print the results
 # Print the results
-print("MLP vs SVM: T-statistic =", T_MLP_SVM, "p-value =", p_value_MLP_SVM)
-print("MLP vs AdaBoost: T-statistic =", T_MLP_AdaBoost, "p-value =", p_value_MLP_AdaBoost)
-print("SVM vs AdaBoost: T-statistic =", T_SVM_AdaBoost, "p-value =", p_value_SVM_AdaBoost)
+print("MLP-SVM: T-statistic =", T_MLP_SVM, "p-value =", p_value_MLP_SVM)
+print("MLP-AdaBoost: T-statistic =", T_MLP_AdaBoost, "p-value =", p_value_MLP_AdaBoost)
+print("SVM-AdaBoost: T-statistic =", T_SVM_AdaBoost, "p-value =", p_value_SVM_AdaBoost)
+
+""" Section 7: Relative Importance """
+ada_boost.fit(X, y)
+
+# Extract feature importances
+feature_importances = ada_boost.feature_importances_
+
+# Get the list of attribute names
+attributes = X.columns
+
+# Plot relative importance of attributes over attributes
+plt.figure(figsize=(10, 6))
+plt.plot(attributes, feature_importances, marker='o', linestyle='-')
+plt.xlabel('Attribute')
+plt.ylabel('Attribute Importance')
+plt.title('Attribute Importance Over Attribute (German Credit Dataset)')
+plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+plt.grid(True)
+plt.tight_layout()  # Adjust layout to prevent overlap of labels
+plt.savefig('Attribute_importance.pdf')
+plt.show()
+plt.close()
